@@ -1,4 +1,5 @@
 # DSO 注释版本
+# 参考资料: https://zhuanlan.zhihu.com/p/74709586
 
 > by gong 
 
