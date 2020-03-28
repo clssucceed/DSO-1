@@ -100,6 +100,7 @@ bool CoarseInitializer::trackFrame(FrameHessian* newFrameHessian, std::vector<IO
 	if(!snapped) //! snapped应该指的是位移足够大了，不够大就重新优化
 	{
 		// 初始化
+		// 如果上一帧优化结果认为帧间位移较小，则将此帧位移初始化为0
 		thisToNext.translation().setZero();
 		for(int lvl=0;lvl<pyrLevelsUsed;lvl++)
 		{
@@ -164,6 +165,7 @@ bool CoarseInitializer::trackFrame(FrameHessian* newFrameHessian, std::vector<IO
 		{
 //[ ***step 5.1*** ] 计算边缘化后的Hessian矩阵, 以及一些骚操作
 			Mat88f Hl = H;
+			// Question: Hl, Hsc, bsc,doStep中关于lambda的部分还没有看懂
 			for(int i=0;i<8;i++) Hl(i,i) *= (1+lambda); // 这不是LM么,论文说没用, 嘴硬
 			// 舒尔补, 边缘化掉逆深度状态
 			Hl -= Hsc*(1/(1+lambda)); // 因为dd必定是对角线上的, 所以也乘倒数
@@ -193,8 +195,10 @@ bool CoarseInitializer::trackFrame(FrameHessian* newFrameHessian, std::vector<IO
 //[ ***step 5.4*** ] 计算更新后的能量并且与旧的对比判断是否accept
 			Mat88f H_new, Hsc_new; Vec8f b_new, bsc_new;
 			Vec3f resNew = calcResAndGS(lvl, H_new, b_new, Hsc_new, bsc_new, refToNew_new, refToNew_aff_new, false);
+			// 由于calcResAndGs中返回飞蛾alphaEnergy在位移较大时并没有包含逆深度先验项，calcEC用于计算逆深度先验项
 			Vec3f regEnergy = calcEC(lvl);
 
+			// 完整的初始化能量函数: 光度误差项，逆深度先验项，位移正则项
 			float eTotalNew = (resNew[0]+resNew[1]+regEnergy[1]);
 			float eTotalOld = (resOld[0]+resOld[1]+regEnergy[0]);
 
@@ -544,12 +548,14 @@ Vec3f CoarseInitializer::calcResAndGS(
 		Pnt* point = ptsl+i;
 		if(!point->isGood_new) // 点不好用之前的
 		{
+			// BUG: 此处应该是一个bug，E应该改成EAlpha
 			E.updateSingle((float)(point->energy[1])); //! 又是故意这样写的，没用的代码
 		}
 		else
 		{
 			// 最开始初始化都是成1
 			point->energy_new[1] = (point->idepth_new-1)*(point->idepth_new-1);  //? 什么原理?
+			// BUG: 此处应该是一个bug，E应该改成EAlpha
 			E.updateSingle((float)(point->energy_new[1])); 
 		}
 	}
@@ -561,9 +567,11 @@ Vec3f CoarseInitializer::calcResAndGS(
 
 	// compute alpha opt.
 	float alphaOpt;
+	// alphaEngergy足够大意味着t足够大
 	if(alphaEnergy > alphaK*npts) // 平移大于一定值
 	{
 		alphaOpt = 0;
+		// 和ppt不一致
 		alphaEnergy = alphaK*npts;
 	}
 	else
@@ -572,6 +580,8 @@ Vec3f CoarseInitializer::calcResAndGS(
 	}
 
 
+	// Hsc的计算充分利用了V的稀疏特性，所以才不需要将W先完全算出来，可以将每个像素相关联的Jc^TJp, Jp^Tr在计算H时保存下来
+	// 并且在计算Hsc时逐像素取出保存的信息计算出部分Hsc然后累加即可获取最终的Hsc和bsc
 	acc9SC.initialize();
 	for(int i=0;i<npts;i++)
 	{

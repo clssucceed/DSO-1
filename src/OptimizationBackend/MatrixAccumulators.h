@@ -1332,6 +1332,12 @@ private:
   float numIn1, numIn1k, numIn1m;
 
 
+  // 为了防止大数和小数相加，小数精度损失的问题，具体而言
+  // 1. 当1000个量级差不多的小数相加之后就将其储存到SSEData1k中，将SSEData重置为0
+  // 2. 当第二组1000个量级差不多的小数相加之后就将SSEData中的数值累加到SSEData1k中
+  // 3. 如此类推，当有1000组1000个小数的结果从SSEData中累加到SSEData1k中之后就会将SSEData1k中的数存储到SSEData1m中，
+  // 同样也是为了防止过多量级相同的SSEData1k元素相加导致精度损失
+  // 4. 综上，每隔1000个数将低量级的数的和累加到高量级的数中，可以保证精度损失最多3位有效数字
   void shiftUp(bool force)
   {
 	  if(numIn1 > 1000 || force)
