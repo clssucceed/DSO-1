@@ -18,3 +18,11 @@ cmake-build-debug
 .vscode/*
 .vscode/launch.json
 .vscode/settings.json
+
+*.srctrlbm
+
+*.srctrldb
+
+*.srctrldb_tmp
+
+*.srctrlprj
