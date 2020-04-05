@@ -293,7 +293,7 @@ Vec4 FullSystem::trackNewCoarse(FrameHessian* fh)
 
 	AffLight aff_last_2_l = AffLight(0,0);
 //[ ***step 1*** ] 设置不同的运动状态
-	std::vector<SE3,Eigen::aligned_allocator<SE3>> lastF_2_fh_tries;
+	std::vector<SE3,Eigen::aligned_allocator<SE3>> lastF_2_fh_tries; // Tcr
 	printf("size: %d \n", lastF_2_fh_tries.size());
 	if(allFrameHistory.size() == 2)
 		for(unsigned int i=0;i<lastF_2_fh_tries.size();i++) lastF_2_fh_tries.push_back(SE3());  //? 这个size()不应该是0么
@@ -373,6 +373,7 @@ Vec4 FullSystem::trackNewCoarse(FrameHessian* fh)
 	//! 粗层的能量值大, 也不继续优化了, 来节省时间
 	 
 
+	// 表示跟踪结果中每层最低的能量值：每一层的最低能量值是所有假设的跟踪结果在那一层的能量值中的最小值
 	Vec5 achievedRes = Vec5::Constant(NAN);
 	bool haveOneGood = false;
 	int tryIterations=0;
@@ -475,6 +476,10 @@ Vec4 FullSystem::trackNewCoarse(FrameHessian* fh)
 	}
 
 
+	// achievedRes: 所有假设优化出的0层能量的最小值
+	// flowVecs[0]: 只有位移时的像素误差rmse
+	// flowVecs[1]: 0
+	// flowVecs[2]: 位移和旋转都有时的像素误差rmse
 	return Vec4(achievedRes[0], flowVecs[0], flowVecs[1], flowVecs[2]);
 }
 
@@ -926,7 +931,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, int id )
 					setting_kfGlobalWeight*setting_maxShiftWeightR *  sqrtf((double)tres[2]) / (wG[0]+hG[0]) + 	//TODO 旋转像素位移, 设置为0???
 					setting_kfGlobalWeight*setting_maxShiftWeightRT * sqrtf((double)tres[3]) / (wG[0]+hG[0]) +	// 旋转+平移像素位移
 					setting_kfGlobalWeight*setting_maxAffineWeight * fabs(logf((float)refToFh[0])) > 1 ||		// 光度变化大
-					2*coarseTracker->firstCoarseRMSE < tres[0];		// 误差能量变化太大(最初的两倍)
+					2*coarseTracker->firstCoarseRMSE < tres[0];		// 误差能量变化太大(全局最初的两倍)
 
 		}
 

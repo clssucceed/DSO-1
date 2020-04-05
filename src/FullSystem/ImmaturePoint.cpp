@@ -202,6 +202,7 @@ ImmaturePointStatus ImmaturePoint::traceOn(FrameHessian* frame,const Mat33f &hos
 	//! (dIx*dy - dIy*dx)^2
 	float b = (Vec2f(dy,-dx).transpose() * gradH * Vec2f(dy,-dx)); // (dx, dy)垂直方向的乘积
 	// 计算的是极线方向和梯度方向的夹角大小，90度则a=0, errorInPixel变大；平行时候b=0
+	// errorInPixel是物理意义是一个pixel的几何误差会产生的极限搜索误差(计算公式还没有理清楚)
 	float errorInPixel = 0.2f + 0.2f * (a+b) / a; // 没有使用LSD的方法, 估计是能有效防止位移小的情况
 
 	//* errorInPixel大说明垂直, 这时误差会很大, 视为bad
@@ -247,7 +248,7 @@ ImmaturePointStatus ImmaturePoint::traceOn(FrameHessian* frame,const Mat33f &hos
 	float ptx = uMin-randShift*dx;
 	float pty = vMin-randShift*dy;
 
-	//* pattern在新的帧上的偏移量
+	//* pattern在新的帧上的偏移量(此处是一个近似值，由于R是帧间旋转接近I,所以rotatePattern和真值的误差较小)
 	Vec2f rotatetPattern[MAX_RES_PER_POINT];
 	for(int idx=0;idx<patternNum;idx++)
 		rotatetPattern[idx] = Rplane * Vec2f(patternP[idx][0], patternP[idx][1]);

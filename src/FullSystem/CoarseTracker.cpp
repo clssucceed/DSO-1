@@ -178,6 +178,8 @@ void CoarseTracker::makeCoarseDepthL0(std::vector<FrameHessian*> frameHessians)
 			{
 				int bidx = 2*x   + 2*y*wlm1;
 				//? 为什么不除以4   答: 后面除以权重的和了 nice!
+				// Question: idepth_lm目前还有一些点是没有深度的，这样访问会不会出错
+				// Answer: 深度无效的位置的idepth_lm是0，依然符合高斯归一化积公式(有几个点有效就使用几个进行高斯归一化积)
 				idepth_l[x + y*wl] = 		idepth_lm[bidx] +
 											idepth_lm[bidx+1] +
 											idepth_lm[bidx+wlm1] +
@@ -347,6 +349,7 @@ void CoarseTracker::calcGSSSE(int lvl, Mat88 &H_out, Vec8 &b_out, const SE3 &ref
 	H_out = acc.H.topLeftCorner<8,8>().cast<double>() * (1.0f/n);
 	b_out = acc.H.topRightCorner<8,1>().cast<double>() * (1.0f/n);
 
+	// 不同维度的jacobian的量级相差很大，需要将不同维度的jacobian放缩到相同的量级来提升数值稳定性（ceres内部已经默认实现了这一操作）
 	H_out.block<8,3>(0,0) *= SCALE_XI_ROT;   // bug : 平移旋转顺序错了
 	H_out.block<8,3>(0,3) *= SCALE_XI_TRANS;
 	H_out.block<8,1>(0,6) *= SCALE_A;
@@ -723,6 +726,7 @@ bool CoarseTracker::trackNewestCoarse(
 	aff_g2l_out = aff_g2l_current;
 
 //[ ***step 4*** ] 判断优化失败情况
+	// 一般情况下光度模型变化不会特别大，即a接近于1,b接近于0
 	if((setting_affineOptModeA != 0 && (fabsf(aff_g2l_out.a) > 1.2))
 	|| (setting_affineOptModeB != 0 && (fabsf(aff_g2l_out.b) > 200)))
 		return false;
